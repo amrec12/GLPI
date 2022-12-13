@@ -1,0 +1,215 @@
+Lançado novo GLPi
+
+Seguimos com nosso compromisso de atualização do procedimento para a comunidade. Desta vez, estamos atualizando o post para a versão 9.5.9, com correções de segurança.
+
+    NOTA:
+
+    Este procedimento foi atualizado para a versão 9.5.9 do GLPi em 26/09/2022
+
+    Instalação do GLPi 9.5 no Debian 11
+
+#######################################################################
+
+Abaixo são dispostos os comandos comandos necessários para instalar o GLPi 9.5.x em um Servidor GNU/Linux Debian 10. Tentarei ser o mais descritivo possível!
+Atualizando Lista de Pacotes Disponíveis
+
+Nosso primeiro passo será atualizar a lista de pacotes disponíveis nos repositórios configurados no GNU/Linux Debian.
+
+#######################################################################	
+# Atualiza Lista de Pacotes
+apt update
+#######################################################################
+Com a lista de pacotes atualizada, podemos correr para os novos passos.
+
+Fuso Horário
+
+O GLPi 9.5 finalmente traz a possibilidade de podermos trabalhar com diferentes fusos na Central de Serviços.
+
+Essa era uma funcionalidade há muito esperada por Centrais de Serviços de médio e grande porte que atendem Clientes geograficamente espalhados.
+
+Mas há também um grande problema que vamos ajudar a resolver aqui!
+
+Muitos analistas não configuram o servidor para trabalhar de forma confiável com relação a horários.
+
+Aqui vão alguns comandos de ajuste geral para isso:
+
+1 - # Removendo pacotes NTP
+apt purge ntp
+ 
+2 - # Instalar pacotes OpenNTPD
+apt install -y openntpd
+ 
+3 - # Parando Serviço OpenNTPD
+service openntpd stop
+ 
+4 - # Configurar Timezone padrão do Servidor
+dpkg-reconfigure tzdata
+ 
+ 
+5 - # Adicionar servidor NTP.BR
+echo "servers pool.ntp.br" > /etc/openntpd/ntpd.conf
+ 
+6 - # Habilitar e Iniciar Serviço OpenNTPD
+systemctl enable openntpd
+systemctl start openntpd
+
+Importante selecionar o melhor Timezone para sua região!
+
+###################################################################
+Pacotes para Manipulação de Arquivos 
+
+Se você tiver realizado uma instalação minimalista do sistema operacional, tal como sempre recomendamos, é provável que você precise de um pouco mais de ferramentas para manipulação de arquivos, consumir API dentre outras coisas.
+
+Os comandos abaixo lhe auxiliarão com isso:
+1 - # PACOTES MANIPULAÇÃO DE ARQUIVOS
+
+apt install -y xz-utils bzip2 unzip curl
+2 - apt install -y xz-utils bzip2 unzip curl
+
+Feito isso, podemos seguir para os próximos passos!
+#####################################################################
+
+Preparação do Servidor WEB
+
+Como já sabemos, o GLPi trata-se de uma ferramenta WEB. Podemos vê-lo simplesmente como um site a ser instalado. Portanto, precisamos montar um ambiente WEB para tal funcionalidade.
+
+Existem várias opções de serviço WEB a ser utilizada em ambientes GNU/Linux. Utilizaremos o servidor WEB Apache.
+
+Para habilitar o serviço Apache em seu servidor, basta seguir o comando abaixo:
+
+# Instalar dependências no sistema
+apt install -y apache2 libapache2-mod-php php-soap php-cas php php-{apcu,cli,common,curl,gd,imap,ldap,mysql,xmlrpc,xml,mbstring,bcmath,intl,zip,bz2}
+
+Repare que, ao invés de termos de ficar repetindo “php7.3-modulox” para cada módulo do PHP, usamos um recurso do shell usando todo conteúdo dentro do par de “chaves” ({ }). Isso cria um vetor com os valores dentro das chaves para que não tenhamos de ficar digitando tudo. Pois é, tem coisas que só o shell faz para nós!
+
+O GLPi é um sistema desenvolvido na linguagem PHP, por isso, neste comando instalamos vários módulos PHP.
+
+Ao fim deste comando, teremos um servidor WEB instalado já com suporte a linguagem PHP e com todas as dependências do GLPi resolvidas.
+######################################################################
+
+
+Resolvendo Problema de Acesso WEB ao Diretório
+
+Um ajuste que muitos deixam de fazer é com relação a permissão de acesso ao diretório WEB. Isso pode ser resolvido de forma simples com uma pequeno arquivo de configuração.
+
+Para criar o arquivo e habilitar a configuração, basta executar os comandos a seguir:
+
+# Criar arquivo com conteúdo
+echo -e "<Directory \"/var/www/html/glpi\">\nAllowOverride All\n</Directory>" > /etc/apache2/conf-available/glpi.conf
+ 
+# Habilita a configuração criada
+a2enconf glpi.conf
+ 
+# Reinicia o servidor web considerando a nova configuração
+systemctl restart apache2
+
+Com isso, eliminamos um calo do nosso pé. Pode acreditar, muitos procuram a solução disso internet à fora!
+########################################################################
+
+Baixar e Instalar o GLPi
+
+Como dito, o GLPi é basicamente um site. Nosso trabalho, neste momento é basicamente baixá-lo e colocá-lo em um diretório específico dentro do servidor. Neste caso, um diretório para onde tenha um site configurado no Apache.
+
+Por comodidade, colocaremos o GLPi na pasta padrão do Apache, lembrando que isso não é uma regra.
+
+Repare que fizemos tudo com apenas 1 linha de comando para você, de forma que fique bem simples:
+
+
+	
+# BAIXAR PACOTE GLPi
+wget -O- https://github.com/glpi-project/glpi/releases/download/9.5.9/glpi-9.5.9.tgz | tar -zxv -C /var/www/html/
+Estamos com apenas 1 linha de comando baixando o pacote GLPi de seu repositório com o comando “wget” e, já na sequência, usando o comando “tar” para extraí-lo direto no diretório do apache.
+
+########################################################################
+
+Ajustar Permissões de Arquivos
+
+Com os arquivos já em seu devido lugar, faremos agora um ajuste em cima das permissões destes. Execute os seguintes comando:
+# AJUSTAR PERMISSÕES DE ARQUIVOS
+chown www-data. /var/www/html/glpi -Rf
+find /var/www/html/glpi -type d -exec chmod 755 {} \;
+find /var/www/html/glpi -type f -exec chmod 644 {} \;
+
+Finalizado!
+##########################################################################
+
+Preparando o Serviço SQL.
+
+	
+# Instalando o Serviço MySQL
+apt install -y mariadb-server
+
+Ao fim deste comando teremos já um serviço MySQL disponível para ser utilizado em nosso Servidor.
+#############################################################################
+
+Criando Usuário e Base de Dados MySQL
+
+Apesar de termos nosso Serviço SQL rodando, ainda precisamos criar uma base de dados a ser utilizada pelo sistema e uma conta de acesso administrativo a essa base, também a ser utilizada pelo sistema GLPi.
+
+Para tanto, basta usar os comandos abaixo:
+
+# Criando base de dados
+mysql -e "create database glpidb character set utf8"
+ 
+# Criando usuário
+mysql -e "create user 'amrec'@'localhost' identified by '123456'"
+ 
+# Dando privilégios ao usuário
+mysql -e "grant all privileges on glpidb.* to 'amrec'@'localhost' with grant option";
+
+Apenas precisamos ajustar as permissões do usuário que acabamos de criar para acessar a tabela de TimeZone do MySQL. Lembra que agora podemos usar diferentes fusos no GLPi? É assim que habilitamos parte do processo!
+
+Execute os comandos abaixo:
+
+# Habilitando suporte ao timezone no MySQL/Mariadb
+mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -p -u root mysql
+ 
+# Permitindo acesso do usuário ao TimeZone
+mysql -e "GRANT SELECT ON mysql.time_zone_name TO 'amrec'@'localhost';"
+ 
+# Forçando aplicação dos privilégios
+mysql -e "FLUSH PRIVILEGES;"
+
+###################################################################################
+
+Instalação via Web
+
+ Basta abri-lo e acessar o endereço WEB do servidor GLPi que estávamos configurando e correr com a instalação tal como de costume.
+
+Caso não tenha certeza de qual o endereço IP,  basta digitar o seguinte comando no servidor:
+
+	
+hostname -I
+
+###################################################################################
+Os passos a são relativamente intuitivos, com excessão da configuração da conexão com o banco de dados que alguns iniciantes se atrapalham.
+
+1 - localhost
+2 - amrec
+3 - senha do SQL
+
+Feito isso, é o tempo de beber um café e voltar para usar o sistema!
+################################################################################
+
+Pós instalação
+
+Após a instalação, ainda são necessários alguns pequenos ajustes finos.
+
+O primeiro deles é com relação ao pseudo cron:
+
+
+	
+# Criar entrada no agendador de tarefas do Linux
+echo -e "* *\t* * *\troot\tphp /var/www/html/glpi/front/cron.php" >> /etc/crontab
+ 
+# Reiniciar agendador de tarefas para ler as novas configurações
+
+
+O segundo é a remoção do diretório de instalação.
+
+
+# Remover diretório de instalação
+rm -Rf /var/www/html/glpi/install
+
+Esperamos que este post o ajude em sua jornada e, quando precisar de apoio a amrec estara aqui para lhe auxiliar.
+#################################################################################
